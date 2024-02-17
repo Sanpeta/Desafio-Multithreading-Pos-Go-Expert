@@ -44,28 +44,32 @@ func main() {
 	close(resultChan)
 
 	// Processa os resultados
+	var validResults []*AddressInfo
 	var fastestAddress *AddressInfo
 	var fastestTime time.Duration
 
 	for result := range resultChan {
-		fmt.Printf("API Provider: %s\n", result.APIProvider)
-		fmt.Printf("CEP: %s\n", result.CEP)
-		fmt.Printf("Logradouro: %s\n", result.Logradouro)
-		fmt.Printf("Bairro: %s\n", result.Bairro)
-		fmt.Printf("Localidade: %s\n", result.Localidade)
-		fmt.Printf("UF: %s\n", result.UF)
-		fmt.Printf("Tempo de Resposta: %s\n", result.ResponseTime)
-		fmt.Println("")
-
-		// Verifica se é a resposta mais rápida
-		if fastestAddress == nil || time.Since(time.Now().Add(-time.Second)) < fastestTime {
-			fastestAddress = result
-			fastestTime = time.Since(time.Now())
+		// Verifica se a resposta é válida
+		if isValidAddress(result) {
+			validResults = append(validResults, result)
+			// Verifica se é a resposta mais rápida
+			if fastestAddress == nil || time.Since(time.Now().Add(-time.Second)) < fastestTime {
+				fastestAddress = result
+				fastestTime = time.Since(time.Now())
+			}
 		}
 	}
 
-	// Exibe a resposta mais rápida
-	fmt.Printf("API mais rápido nesse resultado foi: %s\n", fastestAddress.APIProvider)
+	// Exibe apenas a resposta mais rápida e válida
+	if fastestAddress != nil {
+		fmt.Printf("API mais rápida nesse resultado foi: %s\n", fastestAddress.APIProvider)
+		fmt.Printf("CEP: %s\n", fastestAddress.CEP)
+		fmt.Printf("Logradouro: %s\n", fastestAddress.Logradouro)
+		fmt.Printf("Bairro: %s\n", fastestAddress.Bairro)
+		fmt.Printf("Localidade: %s\n", fastestAddress.Localidade)
+		fmt.Printf("UF: %s\n", fastestAddress.UF)
+		fmt.Printf("Tempo de Resposta: %s\n", fastestAddress.ResponseTime)
+	}
 }
 
 func callAPI(apiURL, apiProvider string, wg *sync.WaitGroup, resultChan chan *AddressInfo) {
@@ -106,4 +110,9 @@ func getAddressInfo(apiURL, apiProvider string) (*AddressInfo, error) {
 
 	addressInfo.APIProvider = apiProvider
 	return &addressInfo, nil
+}
+
+func isValidAddress(info *AddressInfo) bool {
+	// Verifica se os campos necessários estão presentes
+	return info.Logradouro != "" && info.Bairro != "" && info.Localidade != "" && info.UF != ""
 }
